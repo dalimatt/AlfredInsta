@@ -30,14 +30,11 @@ INVALID_PARAMETERS = 'APIInvalidParametersError'
 global _api
 global DEBUG
 DEBUG = False
-SARAH = '21426379'
-JAY = '30936050'
-KYLE = '230306394'
 HOME = os.environ['HOME']
 CACHE_DIR = HOME + '/Library/Caches/com.runningwithcrayons.Alfred-2/Workflow Data/com.dalimatt.Instastalk'
 DATA_DIR = HOME + '/Library/Application Support/Alfred 2/Workflow Data/com.dalimatt.Instastalk'
     
-# Code run after function definitions
+# Instantiate the instagram api
 _api = MyInstagramAPI()
 
 ######################################################################
@@ -295,29 +292,6 @@ def stalk_comments_of_user(commenter_id, commentee_id, max_pages=100):
     
     return media_ids, user_comments
     
-def stalk_sarah_likes_in_follows(beginning_days_ago=3, until_days_ago=0, filename=None):
-    """Find likes of sarah using follows stored in file"""
-    # Load users followed from file
-    follows_path = '/Documents/Instagram/sarah_data/sarah_follows.json'
-    with open(HOME + follows_path) as sf_file:
-        sarah_follows = json.load(sf_file)
-    # Make each follow into an instagram.models.User instance for compatibility
-    follows = [models.User(user['user_id'], username=user['username'])
-              for user in sarah_follows]
-    # Get recent media of follows
-    now = int(time.time())
-    DAY = 24*60*60
-    params = {'users': follows,
-            'min_timestamp': now - beginning_days_ago*DAY,
-            'max_timestamp': now-until_days_ago*DAY}
-    total_media = media_of_users(**params)
-    # Check if the user in question has liked any of the media
-    likes = liked_media(SARAH, total_media)
-    # write urls of liked media to file
-    if filename:
-        write_media_urls(likes, filename)
-    
-    return likes
 
 ######################################################################
 ############### Compare current data to stored data ##################
@@ -436,7 +410,7 @@ def download_media_of_user(media, media_dir=None, resolution='standard_resolutio
         media_urls.append((media_id, media_url))
     
     if not media_dir:
-        media_dir = HOME + '/Documents/Instagram/Sarah Media/'
+        media_dir = os.path.join(HOME, 'Desktop', 'Downloaded Media')
     now = time.time()
     date = datetime.datetime.fromtimestamp(now).strftime('(%b%d_%Y)')
     username = media[0].user.username
