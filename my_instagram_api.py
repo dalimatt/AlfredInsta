@@ -103,7 +103,10 @@ class api_type(object):
                 elif self.access_type == 'private':
                     api = self.exchange_data_id_for_api(outer_self)
                 elif self.access_type == 'public':
-                    api = outer_self.secondary_api
+                    if outer_self.secondary_api:
+                        api = outer_self.secondary_api
+                    else:
+                        api = outer_self.primary_api
                 else:
                     raise ValueError('Unknown access_type: {}'.format(access_type))
             else:
@@ -112,7 +115,7 @@ class api_type(object):
             
             # Iterate over function until successful or unrecoverable failure
             result = None
-            while outer_self.primary_api.is_good and outer_self.secondary_api.is_good:
+            while outer_self.primary_api.is_good: # and outer_self.secondary_api.is_good:
                 try:
                     result = f(outer_self, *args, **kwargs)
                 except InstagramAPIError as err:
@@ -153,7 +156,10 @@ class api_type(object):
                 if user_id in follows:
                     return outer_self.secondary_apis[idx]
             # If not a follow in primary or any secondary apis return a secondary_api
-            return outer_self.secondary_api
+            if outer_self.secondary_api:
+                return outer_self.secondary_api
+            else:
+                return outer_self.primary_api
             
             
 class MyInstagramAPI(object):
@@ -531,7 +537,7 @@ class MyInstagramAPI(object):
             while True:
                 try:
                     # Iterate over function until successful or unrecoverable failure
-                    while self.primary_api.is_good and self.secondary_api.is_good:
+                    while self.primary_api.is_good: # and self.secondary_api.is_good:
                         try:
                             content_chunk, _ = func_gen.next()
                         except InstagramAPIError as err:
@@ -708,42 +714,6 @@ class MyInstagramAPI(object):
                     yield False
             # Re-enter (while 2)
 
-    # def new_secondary_api(self):
-        
-    #     num_secondary_tokens = len(self.secondary_access_tokens)
-    #     hour = 60*60
-    #     new_api = False
-    #     while 1:
-    #         while 2:
-    #             for i in range(num_secondary_tokens):          
-    #                 self.secondary_idx = (self.secondary_idx + 1) % num_secondary_tokens           
-    #                 num_remaining = self.api_calls_remaining[self.secondary_idx]
-    #                 last_call = self.api_last_call[self.secondary_idx]          
-    #                 if (num_remaining == None) or (num_remaining >= 1000):
-    #                     new_api = True
-    #                     # break for loop through secondary access tokens
-    #                     break  
-    #                 elif time.time() - last_call >= hour:
-    #                     new_api = True
-    #                     # break for loop through secondary access tokens
-    #                     break  
-    #             if new_api:
-    #                 params = {'access_token': self.secondary_access_tokens[self.secondary_idx],
-    #                         'client_secret': MyInstagramAPI.client_secret}
-    #                 secondary_api = InstagramAPI(**params)
-    #                 # Test api
-    #                 user_self = self.test_api(secondary_api)
-    #                 if user_self:
-    #                     yield secondary_api
-    #                     # break (while 2), enter final statements of (while 1)
-    #                     break
-    #                 else:
-    #                     # continue (while 2) through secondary access tokens
-    #                     continue         
-    #             else:  # No new api found
-    #                 yield False
-    #         # Delete old secondary api, then re-enter (while 2)
-    #         del self.secondary_api
     
     def test_api(self, api):
         try: 
