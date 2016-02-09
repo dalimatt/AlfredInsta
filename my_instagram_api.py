@@ -4,6 +4,9 @@ import re
 from dependencies.instagram import InstagramAPI, InstagramAPIError, InstagramClientError
 import time
 import collections
+import plistlib
+from dependencies import simplejson as json
+import os
 
 
 class HandleAPIErrors(object):
@@ -121,6 +124,7 @@ class api_type(object):
         return wrapped_f
                                
     def get_data_id(self, *args, **kwargs):
+        """Return data (e.g. user_id) for a given data type (e.g. user)"""
         # If there are args the data_id (e.g. user_id, media_id) should be the first positional argument
         if self.data_type == 'search':
             return None
@@ -145,27 +149,51 @@ class api_type(object):
         if user_id in outer_self.primary_follows:
             return outer_self.primary_api
         else:
+            for idx, follows in enumerate(outer_self.secondary_follows):
+                if user_id in follows:
+                    return outer_self.secondary_apis[idx]
+            # If not a follow in primary or any secondary apis return a secondary_api
             return outer_self.secondary_api
             
             
 class MyInstagramAPI(object):
-    """I dont't know, it handles which InstagramAPI to use when multiple access_tokens are availible. The primary api is used when a user is private but followed the the user associated with that account. A secondary api using different access tokens are used when the information is public but requires an access token"""
-    primary_access_token = '1977306979.6104a3c.d49ec03bfe484e46a7be8f35bcd997ed'
-    secondary_access_tokens = ['1593955519.6104a3c.91152da00e96457eb5abad054d45b0af',
-                '1699042.6104a3c.834088edd4a6474e8d28fdf8bb1ab58b']
+    """InstagramAPI wrapper, allows for multiple access tokens"""
+
+    # primary_access_token = '1977306979.6104a3c.d49ec03bfe484e46a7be8f35bcd997ed'
+    # secondary_access_tokens = ['1593955519.6104a3c.91152da00e96457eb5abad054d45b0af',
+    #             '1699042.6104a3c.834088edd4a6474e8d28fdf8bb1ab58b']
     client_secret = '16cf9a1467b740d295631397e17512e5'
     
     def __init__(self):
-        self._num_secondary_tokens = len(MyInstagramAPI.secondary_access_tokens)
+        # Get the access tokens saved in settings.json file
+        info = plistlib.readPlist('info.plist')
+        bundleid = info['bundleid']
+        settings_path = os.path.join(os.path.expanduser(
+                '~/Library/Application Support/Alfred 2/Workflow Data/'),
+                bundleid,
+                'settings.json')
+        with open(settings_path, 'rb') as settings_file:
+            settings = json.load(settings_file)
+        primary_access_token = settings['primary_access_token']
+        secondary_access_tokens = settings.get('secondary_access_tokens', [])
+
+        self._num_secondary_tokens = len(secondary_access_tokens)
         self.api_calls_remaining = [None for i in range(self._num_secondary_tokens)]
         self.api_last_call = [None for i in range(self._num_secondary_tokens)]
-        self.primary_api = InstagramAPI(access_token=MyInstagramAPI.primary_access_token, 
+        # Instantiate primary api
+        self.primary_api = InstagramAPI(access_token=primary_access_token, 
                                         client_secret=MyInstagramAPI.client_secret)
+        # Instantiate secondary api's
+        self.secondary_apis = []
+        for secondary_token in secondary_access_tokens:
+            self.secondary_apis.append( InstagramAPI(access_token=secondary_token,
+                                                client_secret=MyInstagramAPI.client_secret) )
         self.test_api(self.primary_api)
         self.primary_follows = self.get_primary_follows()
         self.secondary_idx = -1  # Will be incremented to 0 in new_secondary_api
         self.secondary_api_gen = self.new_secondary_api()
         self.secondary_api = self.secondary_api_gen.next()
+        self.secondary_follows = self.get_secondary_follows()
         self.api_error_handler = HandleAPIErrors(self)
         self.last_used_api = None
         
@@ -629,6 +657,15 @@ class MyInstagramAPI(object):
         for follows_chunk, url in follows_gen:
             primary_follows += follows_chunk
         return UserSet(primary_follows)
+
+    def get_secondary_follows(self):
+        """Get the follows of the secondary accounts"""
+        num_secondary_accounts = len(self.secondary_apis)
+        secondary_follows = [None for i in range(num_secondary_accounts)]
+        for idx in range(num_secondary_accounts):
+            follows = self.all_user_follows('self', max_pages=50, api=self.secondary_apis[idx])
+            secondary_follows[idx] = UserSet(follows)
+        return secondary_follows
     
     ######################################################################
     ######################   Instance Methods    #########################
@@ -636,7 +673,7 @@ class MyInstagramAPI(object):
     
     def new_secondary_api(self):
         
-        num_secondary_tokens = len(MyInstagramAPI.secondary_access_tokens)
+        num_secondary_tokens = len(self.secondary_apis)
         hour = 60*60
         new_api = False
         while 1:
@@ -654,9 +691,7 @@ class MyInstagramAPI(object):
                         # break for loop through secondary access tokens
                         break  
                 if new_api:
-                    params = {'access_token': MyInstagramAPI.secondary_access_tokens[self.secondary_idx],
-                            'client_secret': MyInstagramAPI.client_secret}
-                    secondary_api = InstagramAPI(**params)
+                    secondary_api = self.secondary_apis[self.secondary_idx]
                     # Test api
                     user_self = self.test_api(secondary_api)
                     if user_self:
@@ -668,8 +703,44 @@ class MyInstagramAPI(object):
                         continue         
                 else:  # No new api found
                     yield False
-            # Delete old secondary api, then re-enter (while 2)
-            del self.secondary_api
+            # Re-enter (while 2)
+
+    # def new_secondary_api(self):
+        
+    #     num_secondary_tokens = len(self.secondary_access_tokens)
+    #     hour = 60*60
+    #     new_api = False
+    #     while 1:
+    #         while 2:
+    #             for i in range(num_secondary_tokens):          
+    #                 self.secondary_idx = (self.secondary_idx + 1) % num_secondary_tokens           
+    #                 num_remaining = self.api_calls_remaining[self.secondary_idx]
+    #                 last_call = self.api_last_call[self.secondary_idx]          
+    #                 if (num_remaining == None) or (num_remaining >= 1000):
+    #                     new_api = True
+    #                     # break for loop through secondary access tokens
+    #                     break  
+    #                 elif time.time() - last_call >= hour:
+    #                     new_api = True
+    #                     # break for loop through secondary access tokens
+    #                     break  
+    #             if new_api:
+    #                 params = {'access_token': self.secondary_access_tokens[self.secondary_idx],
+    #                         'client_secret': MyInstagramAPI.client_secret}
+    #                 secondary_api = InstagramAPI(**params)
+    #                 # Test api
+    #                 user_self = self.test_api(secondary_api)
+    #                 if user_self:
+    #                     yield secondary_api
+    #                     # break (while 2), enter final statements of (while 1)
+    #                     break
+    #                 else:
+    #                     # continue (while 2) through secondary access tokens
+    #                     continue         
+    #             else:  # No new api found
+    #                 yield False
+    #         # Delete old secondary api, then re-enter (while 2)
+    #         del self.secondary_api
     
     def test_api(self, api):
         try: 
