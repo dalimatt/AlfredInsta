@@ -14,7 +14,7 @@ import inspect
 
 
 # Errors
-from httplib2 import ServerNotFoundError
+from dependencies.instagram.httplib2 import ServerNotFoundError
 
 # Instagram API Errors
 
