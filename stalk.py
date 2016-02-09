@@ -30,7 +30,8 @@ ICON_TRASH = os.path.join(ICON_ROOT, 'TrashIcon.icns')
 
 # ACCESS_TOKEN = '1977306979.6104a3c.3aa88e8cc84f4229a79a64c0f1d7ec33'
 FROM_CACHE = 0  # To access cached data regardless of age use value of 0
-HOUR = 60*60
+MINUTE = 60
+HOUR = 60*MINUTE
 LOCAL_URL = 'http://localhost:8515'
 NUM_UNICODE_CHARS = 30  # Number of non-printing unicode values minus 1
 # Instagram API configuration
@@ -117,7 +118,7 @@ def load_user(user_id, username):
     user_info = get_user_info(user_id)
      
     # Display user
-    user = Grammie(wf(), user_id, username, age_info=1)
+    user = Grammie(wf(), user_id, username, age_info=5*MINUTE)
     user.display_info()
     
     # Items to display only if there is user information
@@ -350,18 +351,9 @@ def main(wf):
     
     # Check settings for access_token
     settings = wf.settings
-    if 'access_token' not in settings.keys():
-        unauthorized_api = InstagramAPI(**CONFIG)
-        scope = ['comments', 'likes', 'relationships']
-        authorize_url = unauthorized_api.get_authorize_url(scope=None)
-        args = ['/usr/bin/python', wf.workflowfile('instagram_connect.py')]
-        if background.is_running('connect'):
-            log.debug('Process `connect` is already running')
-        else:
-            background.run_in_background('connect', args, timeout=120)
-                                  
-        wf.add_item('Connect your instagram account', valid=True,
-                    arg=authorize_url)
+    if 'primary_access_token' not in settings.keys():
+        wf.add_item( title='Run the configuration to connect an Instagram account',
+                     subtitle='Type: "stalk.configuration"')
     else:
         data = None
         command = None
@@ -373,6 +365,8 @@ def main(wf):
             # An empty query means the script is being run for the first time
             if query == '': # or query == ' ':
                 command = FAVORITES
+                # No previous unival in query
+                wf.alfred_items = AlfredItems(wf)
             
             else:
                 firstchar = query[0]
@@ -398,21 +392,20 @@ def main(wf):
                         command = SEARCH
                         query = query[1:]
                 
+                    # Initialize generators for special info
+                    previous_unival = unival
+                    wf.alfred_items = AlfredItems(wf, previous_unival)
+                    if data:
+                        # If user scrolls through alfred history the previous command and data may be recovered if reissued here. The previous unicode value is excluded from new data that is issued so there is no conflict of items using the same unicode value
+                        old_data = {previous_unival: (command, data) }
+                        wf.alfred_items.special_info.send(old_data)
+
                 else:
+                    # No special unicode character found
+                    wf.alfred_items = AlfredItems(wf)
                     command = SEARCH
         
-        # Initialize generators for special info
-        # First find previously chosen unival to exclude it from new range
-        previous_unival = wf.cached_data('unival', max_age=FROM_CACHE)
-        if previous_unival:
-            wf.alfred_items = AlfredItems(wf, previous_unival)
-            os.unlink(wf.cachefile('unival.cpickle'))
-        else:
-            wf.alfred_items = AlfredItems(wf)
-        if data:
-            # If user scrolls through alfred history the previous command and data may be recovered if reissued here. The previous unicode value is excluded from new data that is issued so there is no conflict of items using the same unicode value
-            old_data = {previous_unival: (command, data) }
-            wf.alfred_items.special_info.send(old_data)
+
             
                           
         log.debug('Final COMMAND:{0}'.format(COMMANDS[command]))    
