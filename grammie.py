@@ -43,10 +43,10 @@ class EmptySearchError(Exception):
         
 class AlfredItems(object):
     
-    def __init__(self, wf, previous_selected_unicode_value=None):
+    def __init__(self, wf, previous_selected_unicode_value=None, name='special_info'):
         self.wf = wf  # Alfred-Workflow instance
         self.log = self.wf.logger
-        self.back_stack = []  # Stack of back items in nested menus
+        self.name = name
         self.special_unicode_value = self.non_printing_unicode_characters(previous_selected_unicode_value)
         self.special_info = self.special_item_info()
         self.special_info.send(None)
@@ -75,7 +75,7 @@ class AlfredItems(object):
                 special.update(data)
         finally:
             if special != {}:
-                self.wf.cache_data('special_info', special)
+                self.wf.cache_data(self.name, special)
 
 
 class Grammie(object):
