@@ -493,7 +493,7 @@ def make_add_or_remove_favorite_item(user_id, username):
     # Else user is not a favorite because the 'favorites' file doesnt exist
     else:
         wf().add_item(title=u'Create a favorite',
-                    autocomplete=unichr(new_unival))
+                    autocomplete=unichr(special_unicode_value))
         command = ADD_FAV
     # Update special info
     data = {special_unicode_value: (command, {'user_id': user_id, 'username': username})}
