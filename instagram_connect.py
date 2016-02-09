@@ -53,8 +53,10 @@ def on_callback():
                             client_secret=CONFIG['client_secret'])
         settings = wf().settings
         if account_type == 'primary':
-            access_dict = dict([('primary_access_token', access_token)])
-            settings.update(access_dict)
+            if access_token == settings.get('primary_access_token', None):
+                return ('<p>Already configured this account</p>')
+            else:
+                settings.update(primary_access_token=access_token)
         elif account_type == 'secondary':
             secondary_access_tokens = settings.get('secondary_access_tokens', None)
             if not secondary_access_tokens:
