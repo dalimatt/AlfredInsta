@@ -62,8 +62,12 @@ def on_callback():
                 settings.update(access_dict)
             else:
                 # Already exists secondary access tokens
-                secondary_access_tokens.append(access_token)
-                settings.update({'secondary_access_tokens': secondary_access_tokens})
+                # Check if the access token already exists
+                if access_token in secondary_access_tokens:
+                    return ('<p>Already configured this account</p>')
+                else:
+                    secondary_access_tokens.append(access_token)
+                    settings.update( {'secondary_access_tokens': secondary_access_tokens} )
         return ('<p>Successfully connected app<br />' +
                 'Access Token: {}</p>'.format(access_token) )
     
