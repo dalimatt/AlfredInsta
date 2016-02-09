@@ -70,7 +70,6 @@ def on_callback():
                 else:
                     secondary_access_tokens.append(access_token)
                     settings.update( {'secondary_access_tokens': secondary_access_tokens} )
-        return ('<p>Successfully connected app<br />' +
-                'Access Token: {}</p>'.format(access_token) )
+        return ('<p>Successfully connected app</p>')
     
 bottle.run(app=app, host='localhost', port=8515, reloader=True)
