@@ -1,8 +1,11 @@
-import dependencies.bottle
+from dependencies import bottle
 from dependencies.bottle import route, request
 from dependencies.instagram import client
 from dependencies.workflow import Workflow
 import os
+import sys
+
+account_type = sys.argv[1]
 
 _wf = None
 
@@ -48,9 +51,19 @@ def on_callback():
             return 'Could not get access token'
         api = client.InstagramAPI(access_token=access_token, 
                             client_secret=CONFIG['client_secret'])
-        access_dict = dict([('access_token', access_token)])
         settings = wf().settings
-        settings.update(access_dict)
+        if account_type == 'primary':
+            access_dict = dict([('primary_access_token', access_token)])
+            settings.update(access_dict)
+        elif account_type == 'secondary':
+            secondary_access_tokens = settings.get('secondary_access_tokens', None)
+            if not secondary_access_tokens:
+                access_dict = {'secondary_access_tokens': [access_token]}
+                settings.update(access_dict)
+            else:
+                # Already exists secondary access tokens
+                secondary_access_tokens.append(access_token)
+                settings.update({'secondary_access_tokens': secondary_access_tokens})
         return ('<p>Successfully connected app<br />' +
                 'Access Token: {}</p>'.format(access_token) )
     
