@@ -34,12 +34,6 @@ MINUTE = 60
 HOUR = 60*MINUTE
 LOCAL_URL = 'http://localhost:8515'
 NUM_UNICODE_CHARS = 30  # Number of non-printing unicode values minus 1
-# Instagram API configuration
-CONFIG = {
-    'client_id': '6104a3c347304a54909d5dc8b7253c36',
-    'client_secret': '16cf9a1467b740d295631397e17512e5',
-    'redirect_uri': 'http://localhost:8515/oauth_callback'
-}
 
 # Actionable commands
 SEARCH = 0
@@ -62,12 +56,13 @@ COMMANDS = ['Search', 'Load_User', 'Favorites', 'Add_Fav',
             'Check_followed_by', 'Recent_media']
 
 _wf = None
-global api
 
 def wf():
     global _wf
     if _wf is None:
-        _wf = Workflow()
+        _wf = Workflow(update_settings={'github_slug': 'dalimatt/Instastalk',
+                                        'frequency': 1}
+                      )
     return _wf
 
 ######################################################################
@@ -76,7 +71,7 @@ def wf():
             
 def search_users(query):
     """Search for a user by username"""
-    users = api.user_search(query, count=16)
+    users = scratch._api.user_search(query, count=16)
     for user in users:
         guser = Grammie(wf(), user.id, user.username, command=MAKE_FAVORITE, update=False)
         guser.type = 'private'
@@ -346,14 +341,22 @@ def check_user_followed_by(user_id, username):
 ######################################################################
     
 def main(wf):
-    global api
-    api = MyInstagramAPI()
     
+    # Check for an update
+    if wf.update_available:
+        wf.add_item('New version available',
+                'Action this item to install the update',
+                autocomplete='workflow:update',
+                icon=ICON_INFO)
+   
     # Check settings for access_token
     settings = wf.settings
     if 'primary_access_token' not in settings.keys():
         wf.add_item( title='Run the configuration to connect an Instagram account',
-                     subtitle='Type: "stalk.configuration"')
+                     subtitle='Type: "stalk.configuration"',
+                     valid=False,
+                     autocomplete='.configuration'
+                   )
     else:
         data = None
         command = None
