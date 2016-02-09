@@ -6,6 +6,17 @@
 	<string>com.dalimatt.Instastalk</string>
 	<key>connections</key>
 	<dict>
+		<key>479525CE-4660-40B1-B2BC-EEBFC33DCF4E</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>A65C69D9-86F8-49CE-863C-EAD6FD5B34F2</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+			</dict>
+		</array>
 		<key>7319AAC9-5677-4C72-930A-AD64947EBFDE</key>
 		<array>
 			<dict>
@@ -80,11 +91,70 @@
 			<key>version</key>
 			<integer>0</integer>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>plusspaces</key>
+				<false/>
+				<key>url</key>
+				<string>{query}</string>
+				<key>utf8</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.openurl</string>
+			<key>uid</key>
+			<string>A65C69D9-86F8-49CE-863C-EAD6FD5B34F2</string>
+			<key>version</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>stalk.configure</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>...Loading</string>
+				<key>script</key>
+				<string>python configure.py "{query}"</string>
+				<key>subtext</key>
+				<string>Add Instagram accounts and other preferences</string>
+				<key>title</key>
+				<string>Configure Instastalk</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>479525CE-4660-40B1-B2BC-EEBFC33DCF4E</string>
+			<key>version</key>
+			<integer>0</integer>
+		</dict>
 	</array>
 	<key>readme</key>
 	<string></string>
 	<key>uidata</key>
 	<dict>
+		<key>479525CE-4660-40B1-B2BC-EEBFC33DCF4E</key>
+		<dict>
+			<key>ypos</key>
+			<real>130</real>
+		</dict>
 		<key>5848CB44-DFC8-4696-B7C4-E7B2E36BFA2D</key>
 		<dict>
 			<key>ypos</key>
@@ -94,6 +164,11 @@
 		<dict>
 			<key>ypos</key>
 			<real>10</real>
+		</dict>
+		<key>A65C69D9-86F8-49CE-863C-EAD6FD5B34F2</key>
+		<dict>
+			<key>ypos</key>
+			<real>130</real>
 		</dict>
 	</dict>
 	<key>webaddress</key>
