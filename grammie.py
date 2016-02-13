@@ -54,7 +54,7 @@ class AlfredItems(object):
     @staticmethod     
     def non_printing_univals(exclude=None):   
         x = range(0x80,0x85)
-        x.extend(range(0x86,0xA0))    
+        x.extend(range(0x86,0x9F))    
         if exclude:
             try:
                 x.remove(exclude)
@@ -142,7 +142,7 @@ class Grammie(object):
             valid = True
             autocomplete = self.user_id
         if self.type == 'public':
-            webUrl = 'http://iconosquare.com/viewer.php#/user/'
+            webUrl = 'http://instagram.com/'
             item = self._wf.add_item(title=u'{username} ({media} photos)'.format(
                                     username=self.username,  
                                     media = str(self.counts['media'])), 
@@ -151,7 +151,7 @@ class Grammie(object):
                         copytext=self.user_id,
                         valid=valid,
                         autocomplete=autocomplete,
-                        arg=webUrl + self.user_id + '/',
+                        arg="url " + webUrl + self.username,
                         icon=self.get_pic()
                         )
         elif self.type == 'private':
@@ -160,7 +160,7 @@ class Grammie(object):
                         valid=valid,
                         copytext=self.user_id,
                         autocomplete=autocomplete,
-                        arg=webUrl + self.username, 
+                        arg="url " + webUrl + self.username, 
                         icon=self.get_pic()
                         )
         elif self.type ==  'unknown':
