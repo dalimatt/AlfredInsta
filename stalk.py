@@ -28,7 +28,7 @@ ICON_PICTURE = os.path.join(ICON_ROOT, 'ClippingPicture.icns')
 ICON_BACK = os.path.join(ICON_ROOT, 'BackwardArrowIcon.icns')
 ICON_TRASH = os.path.join(ICON_ROOT, 'TrashIcon.icns')
 
-# ACCESS_TOKEN = '1977306979.6104a3c.3aa88e8cc84f4229a79a64c0f1d7ec33'
+ALT = ord('\xa0')
 FROM_CACHE = 0  # To access cached data regardless of age use value of 0
 MINUTE = 60
 HOUR = 60*MINUTE
@@ -46,14 +46,13 @@ CHECK_FOLLOWS = 6
 MAKE_FAVORITE = 7
 GET_LIKES = 8
 CACHED_LIKES = 9
-RECENT_LIKES = 10
-CHECK_FOLLOWED_BY = 11
-RECENT_MEDIA = 12
+CHECK_FOLLOWED_BY = 10
+RECENT_MEDIA = 11
 # Text value of commands used for debugging
 COMMANDS = ['Search', 'Load_User', 'Favorites', 'Add_Fav', 
             'Remove_Fav', 'Test', 'Check_Follows', 'Make_favorite',
-            'Get_likes', 'Cached_likes', 'Recent_likes',
-            'Check_followed_by', 'Recent_media']
+            'Get_likes', 'Cached_likes', 'Check_followed_by', 
+            'Recent_media']
 
 _wf = None
 
@@ -125,15 +124,25 @@ def load_user(user_id, username):
                        icon=ICON_PICTURE )
         
         # Display item to search for recent likes
-        special_unicode_value = prepare_item_with_command(RECENT_LIKES, user_id, username)
+        special_unicode_value = prepare_item_with_command(GET_LIKES, user_id, username)
         if background.is_running(user_id + '.get_likes'):
             subtitle = '...Now searching for media liked by {user}'.format(user=username)
         else:
-            subtitle = ''
-        wf().add_item( title='Recent liked media',
+            # Check if previous data is availiable
+            likes_path = os.path.join(wf().likesdir, user_id + '.json')
+            if os.path.exists(likes_path):
+                age_of_like_data = get_age_cached_data(likes_path)
+                subtitle = "Age of data: " + age_of_like_data
+            else: subtitle = ''
+        wf().add_item( title='Search for media liked by {user}'.format(user=username),
                        subtitle=subtitle,
                        autocomplete=unichr(special_unicode_value),
-                       icon=ICON_FAVORITE )
+                       icon=ICON_FAVORITE,
+                       valid=True,
+                       arg=unichr(special_unicode_value),
+                       modifier_subtitles={
+                        u'alt':'Retrieve previously found likes'
+                        } )
         
         # Display item to check new and removed follows
         special_unicode_value = prepare_item_with_command(CHECK_FOLLOWS, user_id, username)
@@ -190,75 +199,33 @@ def recent_media(user_id, username):
     scratch.download_images(wanting_media, thumbnail_dir, resolution='thumbnail')
     display_media(media, media_dir=thumbnail_dir)
 
-def recent_likes(user_id, username):
-    """Prompt to search to get recent likes or open cached likes"""
-    # Make a go back item
-    special_unicode_value = prepare_item_with_command(LOAD_USER, user_id, username)
-    wf().add_item( title='Go back',
-                   valid=False,
-                   autocomplete=unichr(special_unicode_value),
-                   icon=ICON_BACK)
-                   
-    # Check if there is an ongoing search for this user's likes
-    process_alias = user_id + '.get_likes'
-    if background.is_running(process_alias):
-        # Add alfred item informing that a search is underway
-        wf().add_item( title='...A search is currently ongoing',
-                       icon=ICON_SEARCH)
-    else:
-        # Prompt to search to get recent likes
-        special_unicode_value = prepare_item_with_command(GET_LIKES, user_id, username)
-        wf().add_item( title=u'Search for recently liked media from user\'s follows'.format(user=username),
-                       subtitle=u'Search may take approximately 1 to 10 minutes',
-                       valid=False,
-                       autocomplete=unichr(special_unicode_value),
-                       icon=ICON_SEARCH)
-    
-    # Open cached version of recent likes if one exists
-    # Check if likes directory exists
-    if not os.path.exists(wf().likesdir):
-        os.makedirs(wf().likesdir)
-    # Check if directory for user exists in likes directory
-    user_likes_path = os.path.join(wf().likesdir, user_id + '.json')
-    # Check if cached version exists
-    if os.path.exists(user_likes_path):
-        # Get the age of the cached data
-        age_data = get_age_cached_data(user_likes_path)
-        
-        # Display an alfred item to open the cached likes
-        # Find number of likes
-        with open(user_likes_path, 'r') as likes_file:
-            likes_dict = json.load(likes_file)
-        num_likes = len(likes_dict)
-        special_unicode_value = prepare_item_with_command(CACHED_LIKES, user_id, username)
-        wf().add_item( title=u'{num_likes} recent likes found'.format(num_likes=num_likes),
-                       subtitle=u'Age of data: {age}'.format(age=age_data),
-                       valid=False,
-                       autocomplete=unichr(special_unicode_value),
-                       icon=ICON_RECENT)
-
 def cached_likes(user_id, username):
     """Display cached likes"""
     # Make a go back item
-    special_unicode_value = prepare_item_with_command(RECENT_LIKES, user_id, username)
-    wf().add_item( title='Go back',
+    special_unicode_value = prepare_item_with_command(LOAD_USER, user_id, username)
+    wf().add_item( title='Go back to {user}'.format(user=username),
                    valid=False,
                    autocomplete=unichr(special_unicode_value),
                    icon=ICON_BACK)
                    
     # Retrieve the liked media that is cached
     user_likes_path = os.path.join(wf().likesdir, user_id + '.json')
-    with open(user_likes_path, 'r') as likes_file:
-        likes = json.load(likes_file)
-    # Convert dictionary to media objects
-    likes = [models.Media.object_from_dictionary(m) for m in likes]
-    
-    # Display likes
-    if len(likes):
-        display_media(likes, wf().mediadir)
+    if os.path.exists(user_likes_path):
+        with open(user_likes_path, 'r') as likes_file:
+            likes = json.load(likes_file)
+        # Convert dictionary to media objects
+        likes = [models.Media.object_from_dictionary(m) for m in likes]
+        # Display likes
+        if len(likes):
+            display_media(likes, wf().mediadir)
+        else:
+            # No recent likes to display
+            wf().add_item( title='No recent likes found',
+                           icon=ICON_INFO)
     else:
-        # No recent likes to display
-        wf().add_item( title='No recent likes found')
+        # No likes searched for
+        wf().add_item(title='No likes found, first search for likes',
+                    icon=ICON_INFO)
        
 def check_user_follows(user_id, username):
     """Compare current follows of user to stored version"""
@@ -357,56 +324,72 @@ def main(wf):
                      valid=False,
                      autocomplete='.configuration'
                    )
+    # Process the query, find the encoded command if one exists from autocomplete 
+    #  of previously run script
     else:
         data = None
         command = None
+        alt_command = False
         # Get query passed from Alfred
-        if len(wf.args):
-            query = wf.args[0]
-            log.debug(u'Query: <{0}>, len(query) = {1}'.format(query, len(query)))
-            
-            # An empty query means the script is being run for the first time
-            if query == '': # or query == ' ':
-                command = FAVORITES
-                # No previous unival in query
-                wf.alfred_items = AlfredItems(wf)
-            
+        if len(wf.args[0]):
+            # Check for an 'alt' activated command
+            if wf.args[0][0] == unichr(ALT):  # ALT command
+                alt_command = True
+                if len(wf.args[0]) == 1:
+                    # The delete button was used to eliminate all but the ALT character
+                    query = False
+                else:
+                    log.debug(u'Found ALT command')
+                    query = wf.args[0][1:]
             else:
+                query = wf.args[0]
+                log.debug(u'Query: <{0}>, len(query) = {1}'.format(query, len(query)))
+            # Process query, the first character may be a non-printing unicode charcter 
+            #  that indicates the command the script should run
+            if query:
                 firstchar = query[0]
                 unival = ord(firstchar)
                 if unival in AlfredItems.non_printing_univals():
                     log.debug('Found special unicode! value={0}'.format(unival))
                     # We have a special character key from autocomplete of previous script
-                    # Check for cached information in 'info', if there is none the info has most likely already been processed
+                    # Find the cached information from previously run script containing data
+                    #  for each actionable alfred item
                     info = wf.cached_data('special_info', max_age=FROM_CACHE)
                     if info and len(query) == 1:
-                        # The query passed from Alfred should contain a special, non-printing, unicode character whose ordinal is the key for the cached info dict
+                        # The query passed from Alfred should contain a special, non-printing, 
+                        #  unicode character whose ordinal is the key for the cached info dict
                         command, data = info[unival]                       
-                        # Cache value to exclude it from next time script is run. Alfred will not rerun the script if the autocomplete value is the same as before
+                        # Cache value to exclude it from next time script is run. Alfred will 
+                        #  not rerun the script if the autocomplete value is the same as before
                         wf.cache_data('unival',unival)
-                
                         log.debug(u'COMMAND={0}'.format(COMMANDS[command]))
-                    
-                    elif len(query) == 1:
-                        command = FAVORITES   
-                    
                     else:
-                        # Info has already been processed and deleted and an additional query has been added
+                        # More than one character in query indicates a search
                         command = SEARCH
                         query = query[1:]
-                
                     # Initialize generators for special info
                     previous_unival = unival
                     wf.alfred_items = AlfredItems(wf, previous_unival)
                     if data:
-                        # If user scrolls through alfred history the previous command and data may be recovered if reissued here. The previous unicode value is excluded from new data that is issued so there is no conflict of items using the same unicode value
+                        # If user scrolls through alfred history the previous command and data 
+                        #  may be recovered if reissued here. The previous unicode value is 
+                        #  excluded from new data that is issued so there is no conflict of 
+                        #  items using the same unicode value
                         old_data = {previous_unival: (command, data) }
                         wf.alfred_items.special_info.send(old_data)
-
                 else:
                     # No special unicode character found
                     wf.alfred_items = AlfredItems(wf)
                     command = SEARCH
+            else:
+                # There is no query, only the ALT character
+                command = FAVORITES
+                wf.alfred_items = AlfredItems(wf)
+        else:
+            # An empty query means the script is being run for the first time
+            command = FAVORITES
+            # No previous unival in query
+            wf.alfred_items = AlfredItems(wf)
         
 
             
@@ -429,18 +412,18 @@ def main(wf):
         elif command is MAKE_FAVORITE:
             add_or_remove_favorite(data['user_id'], data['username'])
         elif command is GET_LIKES:
-            user_id = data['user_id']
-            process_alias = user_id + '.get_likes'
-            args = ['/usr/bin/python', wf.workflowfile('get_recent_likes.py'),
-                    user_id, wf.likesdir, wf.mediadir]
-            if background.is_running(process_alias):
-                log.debug('Process `{alias}` is already running'.format(alias=process_alias))
+            if alt_command:
+                cached_likes(data['user_id'], data['username'])
             else:
-                background.run_in_background(process_alias, args)
-            load_user(data['user_id'], data['username'])
-            
-        elif command is RECENT_LIKES:
-            recent_likes(data['user_id'], data['username'])
+                user_id = data['user_id']
+                process_alias = user_id + '.get_likes'
+                args = ['/usr/bin/python', wf.workflowfile('get_recent_likes.py'),
+                        user_id, wf.likesdir, wf.mediadir]
+                if background.is_running(process_alias):
+                    log.debug('Process `{alias}` is already running'.format(alias=process_alias))
+                else:
+                    background.run_in_background(process_alias, args)
+                load_user(data['user_id'], data['username'])
         elif command is CACHED_LIKES:
             cached_likes(data['user_id'], data['username'])
         elif command is CHECK_FOLLOWED_BY:
@@ -521,7 +504,7 @@ def display_media(media, media_dir, download_thumbnails=False):
         wf().add_item( title=u'User: {user}'.format(user=m.user.username),
                        subtitle=u'Caption: {caption}'.format(caption=caption),
                        valid=True,
-                       arg=m.link,
+                       arg="url " + m.link,
                        icon=thumbnail_path)
 
 def get_recent_likes(user_id):
@@ -546,7 +529,7 @@ def get_age_cached_data(file_path):
         age_data_seconds = current_time - os.path.getmtime(file_path)
         age_data = timedelta(seconds=age_data_seconds)
         d = datetime(1,1,1) + age_data
-        return '{days} days, {hours} hours, {minutes} minutes'.format(
+        return u'{days} days, {hours} hours, {minutes} minutes'.format(
                         days=d.day - 1, hours=d.hour, minutes=d.minute)
                     
 def prepare_item_with_command(command, user_id, username):
